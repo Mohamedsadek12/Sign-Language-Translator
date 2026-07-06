@@ -1,4 +1,6 @@
 import os
+
+import keras
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,9 +8,10 @@ import cv2
 from pathlib import Path
 
 import tensorflow as tf
+from keras.src.layers.activations import activation
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization, Softmax
 from tensorflow.keras.optimizers import Adam
 
 # ======================================================================================================
@@ -87,10 +90,64 @@ print("Class indices mapping:", train_generator.class_indices)
 print(f"Train samples: {train_generator.samples}")
 print(f"Validation samples: {val_generator.samples}")
 
+# construct class for custom cnn layer to be inferred whenever
+class CustomeDenseLayer(keras.layers.Layer):
+    def __init__(self, units=32, activation='relu'):
+        super(CustomeDenseLayer, self).__init__()
+        self.units = units
+        self.activation_name = activation
+        self.activation_fn = tf.keras.activations.get(activation)
+        # inheriting and overriding keras' dense layer
+    def build(self, input_shape):
+        self.w = self.add_weight(shape=(input_shape[-1], self.units),initializer='random_normal', trainable=True)
+        self.b = self.add_weight(shape=(self.units,),initializer='zeros', trainable=True)
+    def call(self, inputs):
+        z = tf.matmul(inputs, self.w) + self.b
+        if self.activation_fn is not None:
+            return self.activation_fn(z)
+        return z
 
 # Model Building
 
 model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(IMG_SIZE, IMG_SIZE, 3)),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
 
+    Conv2D(64, (3, 3), activation='relu', padding='same'),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
 
+    Conv2D(128, (3, 3), activation='relu', padding='same'),
+    BatchNormalization(),
+    MaxPooling2D((2, 2)),
+
+    Flatten(),
+    Dropout(0.3),
+
+    CustomeDenseLayer(128, activation='relu'),
+    CustomeDenseLayer(train_generator.num_classes, activation=None),  # raw logits — no ReLU before softmax
+    Softmax()
 ])
+
+# model compile and build
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+print("model summary before building:")
+model.summary()
+
+model.build((None, IMG_SIZE, IMG_SIZE, 3))
+print("\nmodel summary after building:")
+model.summary()
+
+history = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=10
+)
+
+loss, accuracy = model.evaluate(val_generator)
+print(f'Validation loss: {loss:.4f}')
+print(f'Validation accuracy: {accuracy:.4f}')
+
+model.save('1st_custome_cnn.keras')
