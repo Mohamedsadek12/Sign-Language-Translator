@@ -17,7 +17,7 @@ train_data = "dataset/asl_alphabet_train"
 IMG_SIZE   = 64
 BATCH_SIZE = 32
 SEED       = 42 # to give the same split each time, same as random_state in train_test_split
-EPOCHS     = 25
+EPOCHS     = 15
 
 classes = sorted([
     d for d in os.listdir(train_data)
@@ -65,6 +65,10 @@ train_data_gen = ImageDataGenerator(
     brightness_range = [0.8, 1.2], # helps the model generalize across different lighting conditions.
     horizontal_flip = False # flipping a hand sign image left-to-right can turn it into a different (or nonsensical) sign
 )
+val_data_gen = ImageDataGenerator(
+    rescale          = 1.0/255,
+    validation_split = 0.2
+)
 
 # tells the generator to read images directly from a folder structure,
 train_generator = train_data_gen.flow_from_directory(
@@ -76,7 +80,7 @@ train_generator = train_data_gen.flow_from_directory(
     shuffle = True, # shuffle the training data to help the model generalize better and avoid learning the order of the data.
     seed = SEED
 )
-val_generator = train_data_gen.flow_from_directory(
+val_generator = val_data_gen.flow_from_directory(
     train_data,
     target_size = (IMG_SIZE, IMG_SIZE),
     batch_size = BATCH_SIZE,
@@ -156,7 +160,7 @@ callbacks = [
     # Stop early if val_loss stops improving
     EarlyStopping(
         monitor='val_loss',
-        patience=5,
+        patience=3,
         restore_best_weights=True,
         verbose=1
     ),
