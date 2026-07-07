@@ -11,22 +11,10 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dropout, Batc
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 
-
-# ── GPU setup ──────────────────────────────
-gpus = tf.config.list_physical_devices('GPU')
-print(f"GPUs available: {gpus}")
-if gpus:
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    print(f"✅ Training on GPU: {gpus[0].name}")
-else:
-    print("⚠️  No GPU found — training on CPU")
-
-
 # ======================================================================================================
 
-train_data = "dataset/asl_alphabet_train"
-IMG_SIZE   = 32
+train_data = "/kaggle/input/datasets/grassknoted/asl-alphabet/asl_alphabet_train/asl_alphabet_train"
+IMG_SIZE   = 64
 BATCH_SIZE = 32
 SEED       = 42 # to give the same split each time, same as random_state in train_test_split
 EPOCHS     = 15
@@ -153,16 +141,17 @@ model = Sequential([
     Flatten(),
     CustomDenseLayer(256, activation='relu'),
     Dropout(0.5),                                      # heavy dropout before final layer
-    CustomDenseLayer(NUM_CLASSES, activation=None),    # raw logits — no activation before Softmax
-    Softmax()
+    CustomDenseLayer(NUM_CLASSES, activation='softmax'),    # raw logits — no activation before Softmax
+    #Softmax()
 ])
 
 # model compile and build
 
 model.compile(
-    optimizer='adam',
-    loss='categorical_crossentropy', 
-    metrics=['accuracy'])
+    optimizer=Adam(learning_rate=1e-4, clipnorm=1.0),  # lower LR + gradient clipping
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
 
 print("model summary before building:")
 model.summary()
@@ -186,12 +175,19 @@ callbacks = [
     ),
     # Save only the best model checkpoint based on val_accuracy
     ModelCheckpoint(
-        filepath='best_asl_model.keras',
+        filepath='best_asl_model.h5',
         monitor='val_accuracy',
         save_best_only=True,
         verbose=1
     )
 ]
+
+# ##########################################
+# # Grab one batch and try to overfit it completely
+# x_batch, y_batch = next(train_generator)
+# tiny_model = model  # or a fresh instance
+# tiny_model.fit(x_batch, y_batch, epochs=100, verbose=1)
+# ###########################################
 
 history = model.fit(
     train_generator,
@@ -226,7 +222,7 @@ plt.show()
 
 
 # Save the model and class indices mapping
-model.save('asl_custom_cnn.keras')
+model.save('asl_custom_cnn.h5')
 print("Model saved as successfully.")
 
 # Flip the mapping: {0: 'A', 1: 'B', ...} so predictions are human-readable
