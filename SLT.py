@@ -11,10 +11,22 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dropout, Batc
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 
+
+# ── GPU setup ──────────────────────────────
+gpus = tf.config.list_physical_devices('GPU')
+print(f"GPUs available: {gpus}")
+if gpus:
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    print(f"✅ Training on GPU: {gpus[0].name}")
+else:
+    print("⚠️  No GPU found — training on CPU")
+
+
 # ======================================================================================================
 
 train_data = "dataset/asl_alphabet_train"
-IMG_SIZE   = 64
+IMG_SIZE   = 32
 BATCH_SIZE = 32
 SEED       = 42 # to give the same split each time, same as random_state in train_test_split
 EPOCHS     = 15
