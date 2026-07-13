@@ -1,0 +1,166 @@
+import cv2, os, json, time, pygame
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, Dropout, BatchNormalization
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+from gtts import gTTS
+
+# Config
+IMG_SIZE = 128
+MODEL_PATH = 'best_asl_mobilenet.h5'
+INDICES_PATH = 'class_indices.json'
+HOLD_TIME = 1.5   # to hold a sign before it registers
+
+# Build model + load weights
+base_model = MobileNetV2(
+    input_shape = (IMG_SIZE, IMG_SIZE, 3),
+    include_top = False,
+    weights     = None
+)
+
+x      = base_model.output
+x      = GlobalAveragePooling2D()(x)
+x      = BatchNormalization()(x)
+x      = Dense(256, activation='relu')(x)
+x      = Dropout(0.5)(x)
+x      = Dense(128, activation='relu')(x)
+x      = Dropout(0.3)(x)
+output = Dense(29, activation='softmax')(x)
+
+model = Model(inputs=base_model.input, outputs=output)
+model.load_weights(MODEL_PATH)
+print("Model loaded Successfully")
+
+with open(INDICES_PATH, 'r') as f:
+    idx_to_class = json.load(f)
+print("Class indices loaded Successfully")
+
+
+
+# text-to-speech setup
+pygame.mixer.init()
+
+def speak(text):
+    text = text.strip().lower()
+    if not text:
+        return
+    print(f"🔊 Speaking: '{text}'")
+    tts = gTTS(text=text, lang='en', slow=False)
+    tts.save('speech.mp3')
+    pygame.mixer.music.load('speech.mp3')
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        pygame.time.Clock().tick(10)
+    os.remove('speech.mp3')
+
+
+
+# Webcam loop
+cap = cv2.VideoCapture(0)
+print("Controls: S = Speak | C = Clear | Q = Quit")
+
+current_word     = ""
+sentence         = ""
+last_label       = ""
+last_label_time  = time.time()
+letter_added     = False   # prevent adding the same letter repeatedly
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    frame = cv2.flip(frame, 1)
+    h, w  = frame.shape[:2]
+
+    # ROI box
+    x1, y1 = w//2 - 150, h//2 - 150
+    x2, y2 = w//2 + 150, h//2 + 150
+    roi     = frame[y1:y2, x1:x2]
+
+    # Preprocess + predict
+    img_rgb     = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+    img_resized = cv2.resize(img_rgb, (IMG_SIZE, IMG_SIZE))
+    img_input   = preprocess_input(img_resized.astype(np.float32))
+    img_batch   = np.expand_dims(img_input, axis=0)
+
+    pred       = model.predict(img_batch, verbose=0)
+    label      = idx_to_class[str(np.argmax(pred))]
+    confidence = np.max(pred) * 100
+
+    # letter detection logic
+    if label == last_label:
+        elapsed = time.time() - last_label_time
+        if elapsed >= HOLD_TIME and not letter_added and confidence > 70:
+            if label == 'space':
+                # Add current word to sentence
+                if current_word:
+                    sentence += current_word + " "
+                    current_word = ""
+            elif label == 'del':
+                # Delete last letter
+                current_word = current_word[:-1]
+            elif label == 'nothing':
+                pass  # do nothing
+            else:
+                # Add letter to current word
+                current_word += label
+            letter_added = True
+    else:
+        # New label detected — reset timer
+        last_label      = label
+        last_label_time = time.time()
+        letter_added    = False
+
+    # draw UI
+    # ROI box — green if confident, orange if not
+    box_color = (0, 255, 0) if confidence > 70 else (0, 165, 255)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+
+    # Prediction label
+    cv2.putText(frame, f"{label} ({confidence:.1f}%)",
+                (x1, y1 - 15),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, box_color, 2)
+
+    # Hold progress bar — shows how long you've held the sign
+    if label == last_label and confidence > 70:
+        elapsed  = min(time.time() - last_label_time, HOLD_TIME)
+        progress = int((elapsed / HOLD_TIME) * 300)
+        cv2.rectangle(frame, (x1, y2 + 10), (x1 + progress, y2 + 25), (0, 255, 0), -1)
+    cv2.rectangle(frame, (x1, y2 + 10), (x2, y2 + 25), (255, 255, 255), 1)
+
+    # Current word and sentence
+    cv2.putText(frame, f"Word    : {current_word}",
+                (20, h - 80), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+    cv2.putText(frame, f"Sentence: {sentence}",
+                (20, h - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+
+    # Controls hint
+    cv2.putText(frame, "S: Speak | C: Clear | Q: Quit",
+                (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+
+    cv2.imshow('ASL Translator', frame)
+    key = cv2.waitKey(1) & 0xFF
+
+    if key == ord('q'):
+        break
+
+    elif key == ord('s'):
+        if current_word:
+            sentence += current_word + " "
+            current_word = ""
+        full_text = sentence.strip()
+        print(f"Speaking: '{full_text}'")
+        if full_text:
+            speak(full_text)
+
+    elif key == ord('c'):
+        current_word = ""
+        sentence     = ""
+        print("🗑️  Cleared")
+
+cap.release()
+cv2.destroyAllWindows()
+pygame.mixer.quit()
