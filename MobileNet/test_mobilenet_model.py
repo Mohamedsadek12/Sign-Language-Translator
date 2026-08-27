@@ -7,47 +7,40 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, Dropout, BatchNormalization
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
-# ==============================================================================
-# CONFIG
-# ==============================================================================
-IMG_SIZE   = 128    # must match what trained with
+# Config
+IMG_SIZE   = 128 # must match what trained with
 MODEL_PATH = 'best_asl_mobilenet.h5'
-INDICES_PATH = '../asl_custom_cnn/class_indices.json'
+INDICES_PATH = 'class_indices.json'
 
-# ==============================================================================
-# BUILD MODEL + LOAD WEIGHTS
-# ==============================================================================
+# Build Moldel + Load Weights
 base_model = MobileNetV2(
     input_shape = (IMG_SIZE, IMG_SIZE, 3),
     include_top = False,
     weights     = None   # no imagenet weights needed we load our own
 )
 
-x      = base_model.output
-x      = GlobalAveragePooling2D()(x)
-x      = BatchNormalization()(x)
-x      = Dense(256, activation='relu')(x)
-x      = Dropout(0.5)(x)
-x      = Dense(128, activation='relu')(x)
-x      = Dropout(0.3)(x)
+x = base_model.output
+x = GlobalAveragePooling2D()(x)
+x = BatchNormalization()(x)
+x = Dense(256, activation='relu')(x)
+x = Dropout(0.5)(x)
+x = Dense(128, activation='relu')(x)
+x = Dropout(0.3)(x)
 output = Dense(29, activation='softmax')(x)
 
 model = Model(inputs=base_model.input, outputs=output)
 model.load_weights(MODEL_PATH)
-print("✅ Model loaded")
+print("Model loaded successfully")
 
-# ==============================================================================
-# LOAD CLASS INDICES
-# ==============================================================================
+# Load Class Idices
 with open(INDICES_PATH, 'r') as f:
     idx_to_class = json.load(f)
-print("✅ Class indices loaded")
+print("Class indices loaded successfully")
 
-# ==============================================================================
-# WEBCAM LOOP
-# ==============================================================================
+
+# Webcam Loop
 cap = cv2.VideoCapture(0)
-print("📷 Webcam started — press Q to quit")
+print("Webcam started — press Q to quit")
 
 while True:
     ret, frame = cap.read()

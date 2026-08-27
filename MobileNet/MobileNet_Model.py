@@ -10,7 +10,9 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
-train_data  = "dataset/asl_alphabet_train"
+# =================================================================================================
+
+train_data  = "../DataSetS/ASL dataset/asl_alphabet_train"
 IMG_SIZE = 128 # MobileNetV2 works better with 96+
 BATCH_SIZE = 32
 SEED = 42
