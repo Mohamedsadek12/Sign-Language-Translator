@@ -13,7 +13,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCh
 
 # ======================================================================================================
 
-train_data = "/kaggle/input/datasets/grassknoted/asl-alphabet/asl_alphabet_train/asl_alphabet_train"
+train_data = "../DataSets/ASL dataset/asl_alphabet_train"
 IMG_SIZE   = 64
 BATCH_SIZE = 32
 SEED       = 42 # to give the same split each time, same as random_state in train_test_split
@@ -181,13 +181,6 @@ callbacks = [
         verbose=1
     )
 ]
-
-# ##########################################
-# # Grab one batch and try to overfit it completely
-# x_batch, y_batch = next(train_generator)
-# tiny_model = model  # or a fresh instance
-# tiny_model.fit(x_batch, y_batch, epochs=100, verbose=1)
-# ###########################################
 
 history = model.fit(
     train_generator,
