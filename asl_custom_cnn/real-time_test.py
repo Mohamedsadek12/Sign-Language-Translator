@@ -6,9 +6,7 @@ import json
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dropout, BatchNormalization, Softmax
 
-# ==============================================================================
-# CUSTOM LAYER
-# ==============================================================================
+# Custom Layer
 class CustomDenseLayer(keras.layers.Layer):
     def __init__(self, units=32, activation='relu', **kwargs):
         super(CustomDenseLayer, self).__init__(**kwargs)
@@ -31,9 +29,7 @@ class CustomDenseLayer(keras.layers.Layer):
         config.update({'units': self.units, 'activation': self.activation_name})
         return config
 
-# ==============================================================================
-# LOAD MODEL + CLASS INDICES
-# ==============================================================================
+# Load Model + Class Indices
 IMG_SIZE = 64
 
 model = Sequential([
@@ -64,11 +60,9 @@ model.load_weights('asl_custom_cnn.h5')
 with open('class_indices.json', 'r') as f:
     idx_to_class = json.load(f)
 
-print("✅ Model loaded — press Q to quit")
+print("Model loaded — press Q to quit")
 
-# ==============================================================================
-# WEBCAM LOOP
-# ==============================================================================
+# Webcam capture
 cap = cv2.VideoCapture(0)
 
 while True:
