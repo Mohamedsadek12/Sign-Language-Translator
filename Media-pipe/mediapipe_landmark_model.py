@@ -1,6 +1,7 @@
 import os, json
 import numpy as np
 import mediapipe as mp
+from collections import Counter
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from tensorflow.keras.models import Sequential
@@ -10,17 +11,14 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 
-# ==============================================================================
-# CONFIG
-# ==============================================================================
-train_data = "dataset/asl_alphabet_train"
+# Config
+train_data = "../DataSets/ASL dataset/asl_alphabet_train"
 MODEL_TASK_PATH = "hand_landmarker.task"  # download once, see instructions below
 OUT_MODEL_PATH = "asl_landmark_model.h5"
 OUT_CLASSES_PATH = "landmark_classes.json"
 
-# ==============================================================================
-# STEP 0 — download the MediaPipe hand landmark model (one-time)
-# ==============================================================================
+# Step 0 — download the MediaPipe hand landmark model (one-time)
+
 # Run this once from a terminal (network egress required):
 #   wget -q https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
 # or in Python:
@@ -31,37 +29,37 @@ OUT_CLASSES_PATH = "landmark_classes.json"
 #     urllib.request.urlretrieve(url, MODEL_TASK_PATH)
 #     print("Done")
 
-# ==============================================================================
-# STEP 1 — set up the landmarker (IMAGE mode: one-off detections on static files)
-# ==============================================================================
-options = HandLandmarkerOptions(
-    base_options=BaseOptions(model_asset_path=MODEL_TASK_PATH),
-    running_mode=RunningMode.IMAGE,
+# Step 1 — set up the landmarker (IMAGE mode: one-off detections on static files)
+options = HandLandmarkerOptions( # to configure the hand detection and landmark model
+    base_options=BaseOptions(model_asset_path=MODEL_TASK_PATH), # tells MediaPipe to use the model located at MODEL_TASK_PATH
+    running_mode=RunningMode.IMAGE,  # one-off detection on static images
     num_hands=1,
-    min_hand_detection_confidence=0.5
+    min_hand_detection_confidence=0.5 # minimum confidence to consider a hand detected
 )
-landmarker = HandLandmarker.create_from_options(options)
+landmarker = HandLandmarker.create_from_options(options) # creates the actual MediaPipe hand detector
+
+# At this point landmarker is ready to process images
 
 def extract_landmarks(img_path):
-    image = mp.Image.create_from_file(img_path)
-    result = landmarker.detect(image)
-    if not result.hand_landmarks:
+    image = mp.Image.create_from_file(img_path) # MediaPipe loads the image. For example: A.jpg becomes a MediaPipe image object
+    result = landmarker.detect(image) # processes the image
+    if not result.hand_landmarks: # Check whether a hand was detected
         return None
-    lm = result.hand_landmarks[0]  # first detected hand
+    lm = result.hand_landmarks[0]  # first detected hand, contains 21 landmarks (x, y) in normalized coordinates
     coords = np.array([[p.x, p.y] for p in lm])  # (21, 2)
 
     # normalize: translate wrist to origin, scale by hand size
-    wrist = coords[0].copy()
-    coords -= wrist
-    scale = np.linalg.norm(coords[9])  # middle finger MCP, post-translation
-    if scale < 1e-6:
+    wrist = coords[0].copy() # Landmark 0 is the wrist.
+    coords -= wrist # translate wrist to origin
+
+    scale = np.linalg.norm(coords[9])  # Landmark 9 is the middle finger MCP, we want the model to focus on Shape/geometry of the hand
+    if scale < 1e-6: # Prevent division by zero
         return None
     coords /= scale
-    return coords.flatten()  # (42,)
+    return coords.flatten()  # (42,) representing the hand
 
-# ==============================================================================
-# STEP 2 — walk the dataset, extract landmarks for every image
-# ==============================================================================
+
+# Step 2 — walk the dataset, extract landmarks for every image
 X, y = [], []
 skipped = 0
 
@@ -73,15 +71,19 @@ EXCLUDED_CLASSES = {"nothing"}
 class_names = sorted(os.listdir(train_data))
 for class_name in class_names:
     class_dir = os.path.join(train_data, class_name)
-    if not os.path.isdir(class_dir):
+
+    if not os.path.isdir(class_dir): # check if it's a directory
         continue
-    if class_name in EXCLUDED_CLASSES:
+
+    if class_name in EXCLUDED_CLASSES: # skip classes that are excluded
         print(f"Skipping {class_name} (excluded — no hand in frame by design)")
         continue
+
     files = os.listdir(class_dir)
     print(f"Processing {class_name}: {len(files)} images")
+
     for fname in files:
-        vec = extract_landmarks(os.path.join(class_dir, fname))
+        vec = extract_landmarks(os.path.join(class_dir, fname)) # extract landmarks from the image
         if vec is not None:
             X.append(vec)
             y.append(class_name)
@@ -91,29 +93,29 @@ for class_name in class_names:
 landmarker.close()
 
 X = np.array(X)
-print(f"\nTotal usable samples: {len(X)}")
+print(f"Total usable samples: {len(X)}")
 print(f"Skipped (no hand detected): {skipped}")
 
-# ==============================================================================
-# STEP 3 — encode labels, split, train
-# ==============================================================================
-from collections import Counter
+
+# Step 3 — encode labels, split, train
 counts = Counter(y)
 too_few = [cls for cls, c in counts.items() if c < 2]
 if too_few:
     print(f"Dropping classes with <2 usable samples: {too_few}")
-    keep_mask = np.array([label not in too_few for label in y])
-    X = X[keep_mask]
-    y = [label for label in y if label not in too_few]
+    keep_mask = np.array([label not in too_few for label in y]) 
+    X = X[keep_mask] # removes the samples belonging to problematic classes
+    y = [label for label in y if label not in too_few] #does the same for labels
 
-le = LabelEncoder()
+# Encode letters into numbers
+le = LabelEncoder() 
 y_int = le.fit_transform(y)
 y_cat = to_categorical(y_int)
 
-X_train, X_val, y_train, y_val = train_test_split(
-    X, y_cat, test_size=0.2, random_state=42, stratify=y_int
-)
 
+# train/val split
+X_train, X_val, y_train, y_val = train_test_split( X, y_cat, test_size=0.2, random_state=42, stratify=y_int)
+
+# Build a simple feedforward neural network
 model = Sequential([
     Dense(128, activation='relu', input_shape=(42,)),
     Dropout(0.3),
@@ -135,9 +137,7 @@ history = model.fit(
 val_acc = max(history.history['val_accuracy'])
 print(f"\nBest val accuracy: {val_acc:.2%}")
 
-# ==============================================================================
-# STEP 4 — save model + class index mapping (index -> letter, matches argmax output)
-# ==============================================================================
+# Step 4 — save model + class index mapping (index -> letter, matches argmax output)
 model.save(OUT_MODEL_PATH)
 with open(OUT_CLASSES_PATH, 'w') as f:
     json.dump({int(i): cls for i, cls in enumerate(le.classes_)}, f)

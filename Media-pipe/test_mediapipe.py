@@ -7,39 +7,32 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 from tensorflow.keras.models import load_model
 
-# ==============================================================================
-# CONFIG
-# ==============================================================================
-MODEL_PATH      = 'asl_landmark_model.h5'
+
+# Config
+MODEL_PATH = "asl_landmark_model.h5"
 CLASSES_PATH    = 'landmark_classes.json'
 HAND_TASK_PATH  = 'hand_landmarker.task'  # same file used in training
-CONF_THRESHOLD  = 60.0
+CONF_THRESHOLD  = 60.0 # confidence threshold
 
-# ==============================================================================
-# LOAD CLASSIFIER + LABELS
-# ==============================================================================
-model = load_model(MODEL_PATH)
-print("Model loaded")
+# Load Classifier + Labels
+model = load_model(MODEL_PATH, compile=False)
+print("Model loaded successfully")
 
-with open(CLASSES_PATH, 'r') as f:
+with open(CLASSES_PATH, 'r') as f: # load the class labels
     idx_to_class = json.load(f)
-print("Class labels loaded")
+print("Class labels loaded successfully")
 
-# ==============================================================================
-# SET UP HAND LANDMARKER — VIDEO mode (frame-by-frame, uses tracking internally)
-# ==============================================================================
-options = HandLandmarkerOptions(
+# Set Up Hand Landmarker — Video mode (frame-by-frame, uses tracking internally)
+options = HandLandmarkerOptions( #similar to the training code
     base_options=BaseOptions(model_asset_path=HAND_TASK_PATH),
-    running_mode=RunningMode.VIDEO,
+    running_mode=RunningMode.VIDEO, # frame-by-frame detection, uses tracking internally
     num_hands=1,
     min_hand_detection_confidence=0.6,
     min_tracking_confidence=0.6
 )
 landmarker = HandLandmarker.create_from_options(options)
 
-# ==============================================================================
-# NORMALIZATION
-# ==============================================================================
+# Normalization function for landmarks, returns a 42-dim vector (21 points * 2 coords)
 def normalize_landmarks(hand_landmarks):
     coords = np.array([[p.x, p.y] for p in hand_landmarks])  # (21, 2)
     wrist = coords[0].copy()
@@ -50,7 +43,7 @@ def normalize_landmarks(hand_landmarks):
     coords /= scale
     return coords.flatten()
 
-# simple skeleton connections for drawing (21-point hand model)
+# simple skeleton connections for drawing (21-point hand model), They're only used for drawing the hand skeleton on the webcam
 HAND_CONNECTIONS = [
     (0,1),(1,2),(2,3),(3,4),          # thumb
     (0,5),(5,6),(6,7),(7,8),          # index
@@ -60,21 +53,19 @@ HAND_CONNECTIONS = [
     (5,9),(9,13),(13,17)              # palm
 ]
 
-# ==============================================================================
-# WEBCAM LOOP
-# ==============================================================================
-cap = cv2.VideoCapture(0)
+# Webcam Loop
+cap = cv2.VideoCapture(0) # opens the default camera
 print("Webcam started — press Q to quit")
 start_time = time.time()
 
 while True:
-    ret, frame = cap.read()
+    ret, frame = cap.read() # OpenCV captures one frame.
     if not ret:
         break
 
     # IMPORTANT: detect on the (unflipped) frame.
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # MediaPipe expects RGB images, OpenCV captures BGR image
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb) # converts OpenCV image into a MediaPipe image object
     timestamp_ms = int((time.time() - start_time) * 1000)
 
     result = landmarker.detect_for_video(mp_image, timestamp_ms)
@@ -104,9 +95,7 @@ while True:
     else:
         frame = cv2.flip(frame, 1)
 
-    # ==============================================================================
-    # DISPLAY
-    # ==============================================================================
+    # Display label + confidence bar
     if label is not None:
         text = f"{label} ({confidence:.1f}%)" if confidence >= CONF_THRESHOLD else "..."
         color = (0, 255, 0) if confidence >= CONF_THRESHOLD else (0, 165, 255)
