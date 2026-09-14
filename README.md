@@ -1,192 +1,140 @@
-# ASL Sign Language Translator
+# 🤟 Sign Language Translator
 
-A real-time American Sign Language (ASL) translator that converts hand signs to letters, builds words, and speaks them aloud using text-to-speech.
+A computer vision and deep learning project designed to translate sign language into understandable communication in real time.
+
+The project is being developed in multiple stages, with the current implementation focusing on **ASL alphabet recognition** as the foundation of the system.
+
+---
+## 👥 Team
+
+- **Mohamed Sadek** — [GitHub](https://github.com/Mohamedsadek12)
+- **Zyad Salah** — [GitHub](https://github.com/zyad-elkhewekh)
+
+---
+## 🎯 Current Stage
+
+The current stage focuses on building a reliable **real-time ASL recognition component** capable of identifying individual alphabet signs from a webcam.
+
+Rather than relying on a single approach, we experimented with different computer vision and deep learning techniques to compare their performance and suitability for real-time use.
 
 ---
 
-## Demo
+## 🧠 Approaches
 
-```
-Webcam → Hand Sign → Letter → Word → 🔊 Speech
-```
+### 1. Custom CNN
 
-Show a hand sign in the green box → hold for 1.5 seconds → letter is added → spell a word → press S to speak it.
+We started by developing a **Convolutional Neural Network (CNN)**.
 
----
+The model learns directly from hand images and automatically extracts visual features such as:
 
-## Features
+- Edges
+- Shapes
+- Hand contours
+- Finger configurations
+- Spatial patterns
 
-- 🤟 Real-time ASL hand sign recognition via webcam
-- 🔤 Spell words letter by letter using ASL alphabet
-- 🔊 Text-to-speech output using Google TTS
-- ✋ Supports all 26 letters + `space`, `del`, `nothing`
-- 📊 Confidence indicator and hold progress bar
-- ⌨️ Keyboard controls for speak, clear, and quit
+This provided a baseline for image-based sign recognition and helped us understand how CNNs perform on the ASL recognition task.
 
 ---
 
-## Dataset
+### 2. MobileNetV2
 
-**ASL Alphabet Dataset** from Kaggle:
-```
-https://www.kaggle.com/datasets/grassknoted/asl-alphabet
+We then experimented with **MobileNetV2 using transfer learning**.
+
+MobileNetV2 was selected because it provides a strong balance between:
+
+- Feature extraction capability
+- Model size
+- Computational efficiency
+- Real-time inference performance
+
+We used an ImageNet-pretrained MobileNetV2 and fine-tuned it for our sign recognition dataset.
+
+This allowed us to leverage previously learned visual representations while adapting the model to the specific characteristics of sign language.
+
+---
+### 3. MediaPipe Hand Landmarks + Neural Network
+
+Our third approach used a different representation of the input.
+
+Instead of feeding the complete image directly into the classifier, we used **MediaPipe Hand Landmarker** to extract the structure of the hand.
+
+MediaPipe provides **21 landmarks** for a detected hand. We extracted the normalized `(x, y)` coordinates, resulting in:
+
+```text
+21 landmarks × 2 coordinates = 42 features
 ```
 
-- 87,000 images total
-- 29 classes (A–Z + del, space, nothing)
-- 3,000 images per class
-- Image size: 200×200 pixels (resized to 128×128 for training)
+The coordinates were normalized relative to the wrist and scaled according to the hand geometry before being passed to the classifier.
+
+This approach focuses on the **geometric structure and configuration of the hand** rather than depending entirely on raw image pixels.
 
 ---
 
-## Model Architecture
+## 📊 Results
 
-### MobileNetV2 (Transfer Learning) — Final Model
+We compared the different approaches based on their validation performance.
 
-```
-Input (128×128×3)
-        ↓
-MobileNetV2 base (pretrained on ImageNet)
-        ↓
-GlobalAveragePooling2D
-        ↓
-BatchNormalization
-        ↓
-Dense(256, relu)
-        ↓
-Dropout(0.5)
-        ↓
-Dense(128, relu)
-        ↓
-Dropout(0.3)
-        ↓
-Dense(29, softmax)
-```
+| Approach | Validation Accuracy |
+|----------|---------------------|
+| Custom CNN | TBD |
+| MobileNetV2 | TBD |
+| MediaPipe Landmarks + Neural Network | **89.30%** |
 
-### Training Strategy — Two Phases
+The **MediaPipe landmark-based approach achieved our highest validation accuracy of 89.30%** in our experiments.
 
-| Phase | Base Model | Learning Rate | Epochs |
-|---|---|---|---|
-| Phase 1 | Frozen | 0.001 | 10 |
-| Phase 2 | Last 30 layers unfrozen | 0.00001 | 10 |
+It also provides a compact representation of the hand, making it well suited to our real-time recognition pipeline.
 
-### Results
-
-| Metric | Value |
-|---|---|
-| Validation Accuracy | ~90% |
-| Training Platform | Kaggle (2× NVIDIA Tesla T4) |
+> The CNN and MobileNetV2 accuracy values will be added once the final experiments are completed.
 
 ---
 
-## Installation
+## 📷 Real-Time Recognition
 
-**1 — Clone the repository**
-```bash
-git clone https://github.com/yourusername/sign-language-translator.git
-cd sign-language-translator
+The current system uses a webcam to detect and classify ASL hand signs in real time.
+
+The recognition pipeline is:
+
+```text
+             Webcam
+                │
+                ▼
+        Hand Detection
+                │
+                ▼
+       21 Hand Landmarks
+                │
+                ▼
+     Coordinate Normalization
+                │
+                ▼
+      Neural Network Classifier
+                │
+                ▼
+        Predicted ASL Letter
 ```
 
-**2 — Create a virtual environment**
-```bash
-python -m venv slt-env
-slt-env\Scripts\activate        # Windows
-source slt-env/bin/activate     # Linux/Mac
-```
+The application provides real-time information including:
 
-**3 — Install dependencies**
-```bash
-pip install tensorflow==2.12.0
-pip install opencv-python matplotlib scipy keras pandas
-pip install gTTS pygame
-```
+- Detected hand landmarks
+- Predicted ASL letter
+- Prediction confidence
+- Recognized letters
 
 ---
 
-## Requirements
+## 🛠️ Technologies
 
-```
-Python        3.10
-TensorFlow    2.12.0
-Keras         2.12.0
-OpenCV        4.7.0+
-NumPy         1.23.5
-gTTS          2.3+
-pygame        2.5+
-scipy         1.10+
-matplotlib    3.7+
-```
+- **Python**
+- **TensorFlow / Keras**
+- **OpenCV**
+- **MediaPipe**
+- **NumPy**
+- **MobileNetV2**
+- **Deep Learning**
+- **Computer Vision**
 
 ---
 
-## Usage
 
-### Train the Model
-```bash
-python MobileNet_Model.py
-```
-Trains MobileNetV2 in two phases and saves:
-- `best_asl_mobilenet.h5` — best model weights
-- `class_indices.json` — class mapping
 
-### Test on Static Images
-```bash
-python test_mobilenet_model.py
-```
-Runs predictions on all images in `dataset/asl_alphabet_test/` and shows results.
-
-### Real-time Webcam Translator
-```bash
-python ASL_to_voice.py
-```
-
----
-
-## Controls
-
-| Key | Action |
-|---|---|
-| Hold sign 1.5s | Add letter to current word |
-| `space` sign | Complete word, add to sentence |
-| `del` sign | Delete last letter |
-| **S** | Speak the current sentence |
-| **C** | Clear word and sentence |
-| **Q** | Quit |
-
----
-
-## How It Works
-
-```
-1. Webcam captures frame
-2. Region of interest (ROI) — green box in center — is cropped
-3. ROI is resized to 128×128 and preprocessed with MobileNetV2's preprocess_input
-4. Model predicts the ASL letter with confidence score
-5. If the same sign is held for 1.5 seconds with >70% confidence → letter registered
-6. Letters build into words, words build into a sentence
-7. Press S → sentence converted to speech via Google TTS
-```
-
----
-
-## Tips for Best Accuracy
-
-- Keep your hand **inside the green box**
-- Use a **plain background** behind your hand
-- Ensure **good lighting** — avoid shadows on your hand
-- Hold the sign **still** for 1.5 seconds until the progress bar fills
-- The box turns **orange** when confidence is below 70% — adjust your hand position
-
----
-
-## Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| Model not found | Make sure `best_asl_mobilenet.h5` is in the same folder as the script |
-| Webcam not opening | Check camera index: try `cv2.VideoCapture(1)` instead of `0` |
-| TTS not working | Check internet connection — gTTS requires internet |
-| Letters spoken individually | Text is uppercase — `.lower()` is applied automatically |
-| Low accuracy on webcam | Improve lighting and use plain background |
-
----
