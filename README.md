@@ -88,7 +88,6 @@ It also provides a compact representation of the hand, making it well suited to 
 > The CNN and MobileNetV2 accuracy values will be added once the final experiments are completed.
 
 ---
-
 ## 📷 Real-Time Recognition
 
 The current system uses a webcam to detect and classify ASL hand signs in real time.
@@ -122,19 +121,156 @@ The application provides real-time information including:
 - Recognized letters
 
 ---
+## 🔊 Text-to-Speech
 
+The real-time implementation also includes a **Text-to-Speech (TTS)** component.
+
+Recognized output can be converted into spoken audio using:
+
+- **gTTS** for speech generation
+- **Pygame** for audio playback
+
+The TTS implementation is located in:
+
+```text
+Media-pipe/
+└── TTS.py
+```
+
+---
+## 📁 Project Structure
+
+```text
+Sign-Language-Translator/
+│
+├── ArSL_Media-pipe/
+│   ├── arsl_landmark_classes.json
+│   ├── arsl_landmark_model.h5
+│   ├── arsl_mediapipe_model.py
+│   ├── arsl_test.py
+│   └── hand_landmarker.task
+│
+├── Media-pipe/
+│   ├── TTS.py
+│   ├── asl_landmark_model.h5
+│   ├── hand_landmarker.task
+│   ├── landmark_classes.json
+│   ├── mediapipe_landmark_model.py
+│   └── test_mediapipe.py
+│
+├── MobileNet/
+│   ├── MobileNet_Model.py
+│   ├── best_asl_mobilenet.h5
+│   ├── best_asl_mobilenet_p1.h5
+│   ├── class_indices.json
+│   └── test_mobilenet_model.py
+│
+├── asl_custom_cnn/
+│   ├── SLT.py
+│   ├── asl_custom_cnn.h5
+│   ├── asl_custom_cnn.keras
+│   ├── class_indices.json
+│   ├── real-time_test.py
+│   ├── test_results.png
+│   └── training_curves.png
+│
+├── .gitignore
+├── ASL_to_voice
+├── README.md
+└── report.md
+```
+
+---
 ## 🛠️ Technologies
 
-- **Python**
-- **TensorFlow / Keras**
-- **OpenCV**
-- **MediaPipe**
-- **NumPy**
-- **MobileNetV2**
-- **Deep Learning**
-- **Computer Vision**
+- Python
+- TensorFlow / Keras
+- OpenCV
+- MediaPipe
+- NumPy
+- CNN
+- MobileNet
+- Deep Learning
+- Computer Vision
+- gTTS
+- Pygame
+
+---
+## ⚙️ Installation
+
+Create a virtual environment:
+
+```bash
+python -m venv slt-env
+```
+
+Activate it on Windows:
+
+```bash
+slt-env\Scripts\activate
+```
+
+Install the required dependencies:
+
+```bash
+pip install tensorflow opencv-python mediapipe numpy gTTS pygame
+```
+
+---
+## 🚀 Running the Real-Time System
+
+Make sure the required model, class mapping, and MediaPipe task files are available.
+
+For the MediaPipe real-time implementation:
+
+```bash
+python Media-pipe/TTS.py
+```
+
+The webcam will open and the system will begin detecting hand landmarks and recognizing ASL signs.
+
+---
+## 🎮 Controls
+
+| Key | Action |
+|-----|--------|
+| `S` | Speak recognized text |
+| `C` | Clear recognized text |
+| `Q` | Quit application |
+
+---
+## 📚 Key Takeaways
+
+This stage provided practical experience with:
+
+- Convolutional Neural Networks
+- Transfer Learning / Lightweight CNN architectures
+- Hand Landmark Detection
+- Feature Engineering
+- Coordinate Normalization
+- Model Evaluation
+- Real-Time Inference
+- Computer Vision Pipelines
+- Text-to-Speech Integration
+
+One of the main insights from the experiments was that **the way the input is represented can be just as important as the model architecture itself**.
+
+Rather than relying only on increasingly complex image models, representing the hand through its geometric landmarks provided a compact and effective input for real-time recognition.
+
+---
+## 🤝 Contributors
+
+### Mohamed Sadek 
+[GitHub](https://github.com/Mohamedsadek12) · [LinkedIn](https://www.linkedin.com/in/mohamed-sadek12/)
+
+### Zyad Salah
+
+[GitHub](https://github.com/zyad-elkhewekh) · [LinkedIn](https://www.linkedin.com/in/zyad-salah-79b731216/)
 
 ---
 
+## ⭐ Project
+
+This is an ongoing project focused on developing a practical, real-time **Sign Language Translator** using computer vision and deep learning.
 
 
